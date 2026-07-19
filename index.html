@@ -442,7 +442,7 @@
             const inputID = `note-${cat.replace(/\s+/g, '')}-${i}`;
             let placeholderText = ['Desayuno', 'Lunch', 'Cena', 'Bebidas'].includes(cat) ? 
                 (currentLang === 'es' ? "Notas: por favor indique preferencia y/o alguna restricción alimenticia..." : "Notes: please indicate preference and/or any dietary restriction...") :
-                (currentLang === 'es' ? "Notas: Reserve con anticipación, por favor indique la fecha y horario...." : "Notes: Book in advance, please indicate date and time....");
+                (currentLang === 'es' ? "Notas particulares para esta solicitud..." : "Special notes for this request...");
 
             let tagsHtml = (p.tags || []).map(tagKey => `<span class="tag-badge ${tagKey}">${t[tagKey]}</span>`).join('');
             const precioUSD = p.p > 0 ? (p.p / TIPO_CAMBIO).toFixed(2) : 0;
@@ -485,7 +485,7 @@
         if(!text) return;
         const prefAtencion = document.getElementById('concierge-attention-pref').checked;
         const nombreItem = currentLang === 'es' ? "Solicitud Tours / Concierge" : "Tours / Concierge Request";
-        const notaCompleta = `${text} | ${currentLang === 'es' ? 'Atención Directa' : 'Direct Attention'}: ${prefAtencion ? 'Sí' : 'No'}`;
+        const notaCompleta = text; 
         carrito.push({ nombre: nombreItem, precio: 0, nota: notaCompleta, categoria: "Concierge" });
         document.getElementById('concierge-custom-text').value = "";
         renderCarrito();
@@ -630,26 +630,34 @@
 
         let msg = "";
 
-        // 🔥 ACTUALIZACIÓN: Formato de ruteo ultra-limpio exclusivo para Concierge
+        // 🔥 FIJADO MILIMÉTRICO: Formato exacto para requerimientos de Concierge
         if (tieneConcierge) {
-            msg = `${cabecera}%0A*Nombre:* ${nom}%0A*Habitación:* ${hab}%0A---%0A`;
+            msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n`;
+            
+            let lineasNotas = [];
             carrito.forEach(i => {
-                // Si es un elemento fijo (como Bellboy), mostramos el nombre del servicio
-                if (!i.nombre.includes("Solicitud") && !i.nombre.includes("Request")) {
-                    msg += `*Servicio:* ${i.nombre}%0A`;
-                }
-                // Mostramos directo lo que el huésped escribió como notas solicitadas
-                if (i.nota) {
-                    msg += `*Notas:* ${i.nota}%0A`;
+                if (i.nombre.includes("Solicitud") || i.nombre.includes("Request")) {
+                    // Si viene del cuadro de texto libre, guardamos directo su contenido
+                    lineasNotas.push(i.nota);
+                } else {
+                    // Si viene de una tarjeta predefinida (Ej: Bellboy), unificamos el nombre con su aclaración si existe
+                    if (i.nota) {
+                        lineasNotas.push(`${i.nombre} (${i.nota})`);
+                    } else {
+                        lineasNotas.push(i.nombre);
+                    }
                 }
             });
+            
+            msg += `*Notas:* ${lineasNotas.join(", ")}`;
         } else {
-            // Formato normal para transacciones de cobro (Alimentos, Bebidas, Spa y Experiencias)
-            msg = `${cabecera}%0A*Nombre:* ${nom}%0A*Habitación:* ${hab}%0A*Forma de Pago:* ${pago}%0A---%0A`;
-            carrito.forEach(i => msg += `• ${i.nombre} ${i.nota ? `[Detalles: ${i.nota}]` : ''}%0A`);
+            // Formato estándar comercial/alimentos
+            msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n*Forma de Pago:* ${pago}\n---\n`;
+            carrito.forEach(i => msg += `• ${i.nombre} ${i.nota ? `[Detalles: ${i.nota}]` : ''}\n`);
         }
 
-        window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+        // 🔥 BLINDAJE ULTRA: encodeURIComponent previene que el string rompa el enlace móvil de WhatsApp
+        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function irAExperiencia(tipo) {
