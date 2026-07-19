@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -135,7 +134,6 @@
             <div><label id="lblHab" style="font-size: 0.75rem; font-weight:bold;">Habitación:</label><input type="text" id="room-num" class="form-input" placeholder="Ej. 110A"></div>
         </div>
         
-        <!-- SE AGREGÓ UN ID PARA PODER CONTROLAR SU VISIBILIDAD DINÁMICAMENTE -->
         <div style="margin-bottom: 20px;" id="payment-wrapper">
             <label id="lblPago" style="font-size: 0.75rem; font-weight:bold;">Forma de Pago:</label>
             <select id="payment-method" class="form-input">
@@ -317,7 +315,7 @@
         { n_es: "Reserva Cava de Vino", n_en: "Wine Cellar Reservation", p: 0, d_es: "Espacio privado para juntas o micro-eventos (Max 8 personas).", d_en: "Private space for meetings or micro-events (Max 8 pax).", c: "Concierge", img: "" },
         { n_es: "Solicitud Especial (Fuera de carta)", n_en: "Off-menu Food Request", p: 0, d_es: "Indique su antojo especial para gestionarlo con cocina.", d_en: "Indicate your special craving to coordinate with the kitchen.", c: "Concierge", img: "" },
         { n_es: "Evento/Programa en Restaurante", n_en: "Restaurant Event/TV", p: 0, d_es: "Solicite sintonizar un partido o evento especial en pantallas.", d_en: "Request to tune into a match or special event on screens.", c: "Concierge", img: "" },
-        { n_es: "Eventos en Grupo (Family Style)", n_en: "Group Events (Family Style)", p: 0, d_es: "Taco bar, comidas o cenas estilo familiar.", d_en: "Taco bar, family style lunches or dinners.", c: "Concierge", img: "" },
+        { n_es: "Eventos en Grupo (Family Style)", n_en: "Group Events (Family Style)", p: 0, d_es: "Taco bar, comidas o dinners estilo familiar.", d_en: "Taco bar, family style lunches or dinners.", c: "Concierge", img: "" },
         { n_es: "Consulta con Concierge / Tours", n_en: "Concierge & Tours Consultation", p: 0, d_es: "Recomendaciones personalizadas de tours exclusivos, visitas a cenotes mágicos, ruinas arqueológicas y traslados privados.", d_en: "Personalized recommendations for exclusive tours, magical cenote visits, archaeological ruins, and private transfers.", c: "Concierge", tags: [], img: "" },
         { n_es: "Que puedo encontrar en la Boutique?", n_en: "What can I find in the boutique?", p: 0, d_es: "Ahi puedes encontrar variedad de modelos de ropa de playa, flotadores, souvenirs, cepillos dentales, pasta dental, cigarros. Tambien puedes pagar con efectivo, dólares, tarjetas de crédito y/o débito..", d_en: "There, you can find a variety of beachwear, pool floats, souvenirs, toothbrushes, toothpaste, and cigarettes. You can also pay with cash, dollars, and credit or debit cards.", c: "Concierge", tags: [] }
     ];
@@ -505,7 +503,7 @@
         if(carrito.length === 0) { 
             headerWrapper.innerHTML = ""; lista.innerHTML = ""; box.style.display = "none"; 
             propinaMsg.style.display = "none"; mezclaWarning.style.display = "none"; 
-            paymentWrapper.style.display = "block"; // Reset por defecto
+            paymentWrapper.style.display = "block"; 
             return; 
         }
         
@@ -567,7 +565,6 @@
             document.getElementById('btnSend').style.cursor = "pointer";
         }
 
-        // 🔥 LÓGICA INTELIGENTE DE PANTALLA EXCLUSIVA PARA CONCIERGE
         if (tieneConcierge) {
             paymentWrapper.style.display = "none";
             box.style.display = "none";
@@ -631,14 +628,26 @@
         else if(tieneExperiencias) { num = NUMERO_EXPERIENCIAS; cabecera = "*SOLICITUD DE EXPERIENCIAS VIP*"; } 
         else if(tieneConcierge) { num = NUMERO_CONCIERGE; cabecera = "*SOLICITUD DE TOURS & CONCIERGE*"; }
 
-        // 🔥 FILTRADO TEXTUAL EN EL ENVÍO: Si es Concierge omitimos la forma de pago por WhatsApp
-        let msg = `${cabecera}%0A*Nombre:* ${nom}%0A*Habitación:* ${hab}%0A`;
-        if (!tieneConcierge) {
-            msg += `*Forma de Pago:* ${pago}%0A`;
+        let msg = "";
+
+        // 🔥 ACTUALIZACIÓN: Formato de ruteo ultra-limpio exclusivo para Concierge
+        if (tieneConcierge) {
+            msg = `${cabecera}%0A*Nombre:* ${nom}%0A*Habitación:* ${hab}%0A---%0A`;
+            carrito.forEach(i => {
+                // Si es un elemento fijo (como Bellboy), mostramos el nombre del servicio
+                if (!i.nombre.includes("Solicitud") && !i.nombre.includes("Request")) {
+                    msg += `*Servicio:* ${i.nombre}%0A`;
+                }
+                // Mostramos directo lo que el huésped escribió como notas solicitadas
+                if (i.nota) {
+                    msg += `*Notas:* ${i.nota}%0A`;
+                }
+            });
+        } else {
+            // Formato normal para transacciones de cobro (Alimentos, Bebidas, Spa y Experiencias)
+            msg = `${cabecera}%0A*Nombre:* ${nom}%0A*Habitación:* ${hab}%0A*Forma de Pago:* ${pago}%0A---%0A`;
+            carrito.forEach(i => msg += `• ${i.nombre} ${i.nota ? `[Detalles: ${i.nota}]` : ''}%0A`);
         }
-        msg += `---%0A`;
-        
-        carrito.forEach(i => msg += `• ${i.nombre} ${i.nota ? `[Detalles: ${i.nota}]` : ''}%0A`);
 
         window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
     }
