@@ -47,7 +47,7 @@
         
         textarea { width: 100%; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 0.8rem; margin-bottom: 10px; box-sizing: border-box; font-family: inherit; background: #fcfcfc; resize: none; }
         textarea:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
-        .btn-add { background: var(--oscuro); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-add { background: var(--oscuro); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.3s ease; }
 
         .canasta { background: #fdfcf9; border-top: 4px solid var(--oro); padding: 20px; margin-top: 20px; }
         .form-input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
@@ -375,6 +375,21 @@
         renderCarrito();
     }
 
+    // 🔥 NUEVA FUNCIÓN: Modifica visualmente el comportamiento del botón de concierge personalizado si se activa el chat directo
+    function actualizarBotonConcierge() {
+        const chk = document.getElementById('concierge-attention-pref');
+        const btn = document.getElementById('btn-concierge-submit');
+        if (!chk || !btn) return;
+        
+        if (chk.checked) {
+            btn.innerText = currentLang === 'es' ? "Enviar directo a WhatsApp" : "Send directly to WhatsApp";
+            btn.style.background = "#25D366"; // Verde WhatsApp distintivo de acción inmediata
+        } else {
+            btn.innerText = translations[currentLang].agregar;
+            btn.style.background = "var(--oro)"; // Regresa al color de marca original
+        }
+    }
+
     function filtrar(cat, btn) {
         document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
         if(btn) {
@@ -428,12 +443,12 @@
                     </div>
                     <textarea id="concierge-custom-text" style="height: 100px;" placeholder="${currentLang === 'es' ? 'Escribe aquí la atención o información que necesitas...' : 'Write the assistance or information you need here....'}"></textarea>
                     <div style="margin: 10px 0 15px 0; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="concierge-attention-pref" checked style="width: auto; margin: 0;">
+                        <input type="checkbox" id="concierge-attention-pref" style="width: auto; margin: 0;" onchange="actualizarBotonConcierge()">
                         <label for="concierge-attention-pref" style="font-weight: 600; color: var(--oscuro);">
                             ${currentLang === 'es' ? '¿Desea recibir atención directa por WhatsApp?' : 'Would you like to receive direct attention via WhatsApp?'}
                         </label>
                     </div>
-                    <button class="btn-add" style="background: var(--oro);" onclick="agregarConciergePersonalizado()">${t.agregar}</button>
+                    <button id="btn-concierge-submit" class="btn-add" style="background: var(--oro);" onclick="agregarConciergePersonalizado()">${t.agregar}</button>
                 </div>
             </div>`;
         }
@@ -480,16 +495,43 @@
         mostrarToast("Ok"); 
     }
 
+    // 🔥 ACTUALIZACIÓN OPERATIVA: Envía de inmediato si la casilla de urgencia/WhatsApp directo está activa
     function agregarConciergePersonalizado() {
         const text = document.getElementById('concierge-custom-text').value.trim();
         if(!text) return;
+        
         const prefAtencion = document.getElementById('concierge-attention-pref').checked;
-        const nombreItem = currentLang === 'es' ? "Solicitud Tours / Concierge" : "Tours / Concierge Request";
-        const notaCompleta = text; 
-        carrito.push({ nombre: nombreItem, precio: 0, nota: notaCompleta, categoria: "Concierge" });
-        document.getElementById('concierge-custom-text').value = "";
-        renderCarrito();
-        mostrarToast("Ok"); 
+        
+        if (prefAtencion) {
+            // RUTA ULTRA-RÁPIDA (Bypass de canasta por potencial urgencia)
+            const nom = document.getElementById('guest-name').value.trim();
+            const hab = document.getElementById('room-num').value.trim();
+            const t = translations[currentLang];
+            
+            if(!nom || !hab) {
+                mostrarToast(t.errDatos);
+                // Enfoca y desplaza al huésped al inicio de los campos para evitar pérdida de tiempo
+                document.getElementById('guest-name').scrollIntoView({ behavior: 'smooth' });
+                document.getElementById('guest-name').focus();
+                return;
+            }
+            
+            const NUMERO_CONCIERGE = "5219841862451"; 
+            const cabecera = "*SOLICITUD URGENTE / CONCIERGE DIRECTO*";
+            const msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n*Notas:* ${text}`;
+            
+            window.open(`https://wa.me/${NUMERO_CONCIERGE}?text=${encodeURIComponent(msg)}`, '_blank');
+            document.getElementById('concierge-custom-text').value = "";
+            document.getElementById('concierge-attention-pref').checked = false;
+            actualizarBotonConcierge();
+        } else {
+            // RUTA NORMAL: Añadir a la canasta para acumular servicios
+            const nombreItem = currentLang === 'es' ? "Solicitud Tours / Concierge" : "Tours / Concierge Request";
+            carrito.push({ nombre: nombreItem, precio: 0, nota: text, categoria: "Concierge" });
+            document.getElementById('concierge-custom-text').value = "";
+            renderCarrito();
+            mostrarToast("Ok"); 
+        }
     }
 
     function renderCarrito() {
@@ -630,33 +672,23 @@
 
         let msg = "";
 
-        // 🔥 FIJADO MILIMÉTRICO: Formato exacto para requerimientos de Concierge
         if (tieneConcierge) {
             msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n`;
-            
             let lineasNotas = [];
             carrito.forEach(i => {
                 if (i.nombre.includes("Solicitud") || i.nombre.includes("Request")) {
-                    // Si viene del cuadro de texto libre, guardamos directo su contenido
                     lineasNotas.push(i.nota);
                 } else {
-                    // Si viene de una tarjeta predefinida (Ej: Bellboy), unificamos el nombre con su aclaración si existe
-                    if (i.nota) {
-                        lineasNotas.push(`${i.nombre} (${i.nota})`);
-                    } else {
-                        lineasNotas.push(i.nombre);
-                    }
+                    if (i.nota) { lineasNotas.push(`${i.nombre} (${i.nota})`); } 
+                    else { lineasNotas.push(i.nombre); }
                 }
             });
-            
             msg += `*Notas:* ${lineasNotas.join(", ")}`;
         } else {
-            // Formato estándar comercial/alimentos
             msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n*Forma de Pago:* ${pago}\n---\n`;
             carrito.forEach(i => msg += `• ${i.nombre} ${i.nota ? `[Detalles: ${i.nota}]` : ''}\n`);
         }
 
-        // 🔥 BLINDAJE ULTRA: encodeURIComponent previene que el string rompa el enlace móvil de WhatsApp
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
