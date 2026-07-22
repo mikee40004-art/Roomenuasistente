@@ -993,6 +993,10 @@
         }
 
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+
+        // Reset del carrito después de enviar
+        carrito = [];
+        renderCarrito();
     }
 
     function irAExperiencia(tipo) {
