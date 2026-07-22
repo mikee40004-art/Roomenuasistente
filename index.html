@@ -641,18 +641,29 @@
         renderCarrito();
     }
 
-    // 🔥 NUEVA FUNCIÓN: Modifica visualmente el comportamiento del botón de concierge personalizado si se activa el chat directo
+    // 🔥 ACTUALIZACIÓN: Muestra/oculta campos dinámicos de huésped y cambia el botón según la casilla
     function actualizarBotonConcierge() {
         const chk = document.getElementById('concierge-attention-pref');
         const btn = document.getElementById('btn-concierge-submit');
+        const urgentFields = document.getElementById('concierge-urgent-fields');
         if (!chk || !btn) return;
         
         if (chk.checked) {
+            if (urgentFields) urgentFields.style.display = "block";
             btn.innerText = currentLang === 'es' ? "Enviar directo a WhatsApp" : "Send directly to WhatsApp";
-            btn.style.background = "#25D366"; // Verde WhatsApp distintivo de acción inmediata
+            btn.style.background = "#25D366"; // Verde WhatsApp
+            
+            // Auto-llenado de campos urgentes si ya existían datos en el formulario principal
+            const mainName = document.getElementById('guest-name').value;
+            const mainRoom = document.getElementById('room-num').value;
+            const urgentNameInput = document.getElementById('concierge-urgent-name');
+            const urgentRoomInput = document.getElementById('concierge-urgent-room');
+            if (mainName && urgentNameInput && !urgentNameInput.value) urgentNameInput.value = mainName;
+            if (mainRoom && urgentRoomInput && !urgentRoomInput.value) urgentRoomInput.value = mainRoom;
         } else {
+            if (urgentFields) urgentFields.style.display = "none";
             btn.innerText = translations[currentLang].agregar;
-            btn.style.background = "var(--oro)"; // Regresa al color de marca original
+            btn.style.background = "var(--oro)";
         }
     }
 
@@ -708,12 +719,28 @@
                         <span style="color: var(--oro);">${currentLang === 'es' ? '✨ Solicitar atención personalizada de su Concierge' : '✨ Request personalized attention from your concierge'}</span>
                     </div>
                     <textarea id="concierge-custom-text" style="height: 100px;" placeholder="${currentLang === 'es' ? 'Escribe aquí la atención o información que necesitas...' : 'Write the assistance or information you need here....'}"></textarea>
-                    <div style="margin: 10px 0 15px 0; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="concierge-attention-pref" style="width: auto; margin: 0;" onchange="actualizarBotonConcierge()">
-                        <label for="concierge-attention-pref" style="font-weight: 600; color: var(--oscuro);">
+                    
+                    <div style="margin: 10px 0 12px 0; font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="concierge-attention-pref" style="width: auto; margin: 0; cursor: pointer;" onchange="actualizarBotonConcierge()">
+                        <label for="concierge-attention-pref" style="font-weight: 600; color: var(--oscuro); cursor: pointer;">
                             ${currentLang === 'es' ? '¿Desea recibir atención directa por WhatsApp?' : 'Would you like to receive direct attention via WhatsApp?'}
                         </label>
                     </div>
+
+                    <!-- PESTAÑA DINÁMICA DE DATOS URGENTES -->
+                    <div id="concierge-urgent-fields" style="display: none; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid var(--oro); margin-bottom: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.75rem; font-weight:bold; color:var(--oscuro);">${currentLang === 'es' ? 'Nombre:' : 'Name:'}</label>
+                                <input type="text" id="concierge-urgent-name" class="form-input" placeholder="${currentLang === 'es' ? 'Su Nombre' : 'Your Name'}" style="margin-top: 4px; padding: 8px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; font-weight:bold; color:var(--oscuro);">${currentLang === 'es' ? 'Habitación:' : 'Room:'}</label>
+                                <input type="text" id="concierge-urgent-room" class="form-input" placeholder="${currentLang === 'es' ? 'Ej. 110A' : 'Ex. 110A'}" style="margin-top: 4px; padding: 8px;">
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="btn-concierge-submit" class="btn-add" style="background: var(--oro);" onclick="agregarConciergePersonalizado()">${t.agregar}</button>
                 </div>
             </div>`;
@@ -761,33 +788,43 @@
         mostrarToast("Ok"); 
     }
 
-    // 🔥 ACTUALIZACIÓN OPERATIVA: Envía de inmediato si la casilla de urgencia/WhatsApp directo está activa
+    // 🔥 ACTUALIZACIÓN: Procesa la solicitud urgente y envía mensaje directo confirmado a WhatsApp
     function agregarConciergePersonalizado() {
         const text = document.getElementById('concierge-custom-text').value.trim();
-        if(!text) return;
+        const t = translations[currentLang];
         
+        if(!text) {
+            mostrarToast(currentLang === 'es' ? "⚠️ Por favor escribe tu solicitud" : "⚠️ Please write your request");
+            return;
+        }
+
         const prefAtencion = document.getElementById('concierge-attention-pref').checked;
-        
+
         if (prefAtencion) {
-            // RUTA ULTRA-RÁPIDA (Bypass de canasta por potencial urgencia)
-            const nom = document.getElementById('guest-name').value.trim();
-            const hab = document.getElementById('room-num').value.trim();
-            const t = translations[currentLang];
-            
+            let nom = document.getElementById('concierge-urgent-name')?.value.trim();
+            let hab = document.getElementById('concierge-urgent-room')?.value.trim();
+
             if(!nom || !hab) {
                 mostrarToast(t.errDatos);
-                // Enfoca y desplaza al huésped al inicio de los campos para evitar pérdida de tiempo
-                document.getElementById('guest-name').scrollIntoView({ behavior: 'smooth' });
-                document.getElementById('guest-name').focus();
+                if(!nom && document.getElementById('concierge-urgent-name')) document.getElementById('concierge-urgent-name').focus();
+                else if(!hab && document.getElementById('concierge-urgent-room')) document.getElementById('concierge-urgent-room').focus();
                 return;
             }
-            
+
+            // Mantiene sincronizados los campos generales de la canasta por coherencia de sesión
+            if(document.getElementById('guest-name')) document.getElementById('guest-name').value = nom;
+            if(document.getElementById('room-num')) document.getElementById('room-num').value = hab;
+
             const NUMERO_CONCIERGE = "5219841862451"; 
             const cabecera = "*SOLICITUD URGENTE / CONCIERGE DIRECTO*";
             const msg = `${cabecera}\n*Nombre:* ${nom}\n*Habitación:* ${hab}\n*Notas:* ${text}`;
-            
+
             window.open(`https://wa.me/${NUMERO_CONCIERGE}?text=${encodeURIComponent(msg)}`, '_blank');
+
+            // Limpieza y reseteo
             document.getElementById('concierge-custom-text').value = "";
+            if(document.getElementById('concierge-urgent-name')) document.getElementById('concierge-urgent-name').value = "";
+            if(document.getElementById('concierge-urgent-room')) document.getElementById('concierge-urgent-room').value = "";
             document.getElementById('concierge-attention-pref').checked = false;
             actualizarBotonConcierge();
         } else {
